@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🌍 Traductor JSON Multi-idioma</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+          "Segoe UI Symbol", "Noto Color Emoji";
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .header p {
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .main-content {
+        padding: 40px;
+      }
+
+      .step {
+        margin-bottom: 40px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 25px;
+        transition: all 0.3s ease;
+        opacity: 0.6;
+      }
+
+      .step.active {
+        border-color: #4facfe;
+        box-shadow: 0 5px 15px rgba(79, 172, 254, 0.2);
+        opacity: 1;
+      }
+
+      .step-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .step-number {
+        background: #4facfe;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 15px;
+      }
+
+      .step-title {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .file-upload {
+        border: 3px dashed #4facfe;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9ff;
+        position: relative;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .file-upload:hover {
+        background: #e9f2ff;
+        border-color: #0056b3;
+        transform: translateY(-2px);
+      }
+
+      .file-upload.dragover {
+        background: #e3f2fd;
+        border-color: #1976d2;
+        transform: scale(1.02);
+        box-shadow: 0 10px 30px rgba(25, 118, 210, 0.3);
+      }
+
+      .file-upload-icon {
+        font-size: 3em;
+        color: #4facfe;
+        margin-bottom: 15px;
+      }
+
+      .language-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .language-option {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        background: white;
+      }
+
+      .language-option:hover {
+        border-color: #4facfe;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .language-option.selected {
+        border-color: #4facfe;
+        background: #f8f9ff;
+        box-shadow: 0 5px 15px rgba(79, 172, 254, 0.2);
+      }
+
+      .flag {
+        font-size: 2em;
+        margin-bottom: 10px;
+      }
+
+      .country-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .currency-info {
+        font-size: 0.9em;
+        color: #666;
+      }
+
+      .api-key-input {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 1em;
+        transition: border-color 0.3s ease;
+      }
+
+      .api-key-input:focus {
+        outline: none;
+        border-color: #4facfe;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: bold;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+      }
+
+      .btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .progress {
+        width: 100%;
+        height: 10px;
+        background: #e9ecef;
+        border-radius: 5px;
+        overflow: hidden;
+        margin: 20px 0;
+      }
+
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #4facfe, #00f2fe);
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      .analysis-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+
+      .field-item {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #4facfe;
+      }
+
+      .field-path {
+        font-family: monospace;
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 5px;
+      }
+
+      .field-content {
+        font-style: italic;
+        color: #333;
+      }
+
+      .status-message {
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        font-weight: bold;
+      }
+
+      .status-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      .download-section {
+        text-align: center;
+        padding: 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        margin-top: 20px;
+      }
+
+      .download-btn {
+        background: white;
+        color: #667eea;
+        font-size: 1.2em;
+        padding: 20px 40px;
+        margin-top: 15px;
+      }
+
+      #statusMessages {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 15px;
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        .language-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .main-content {
+          padding: 20px;
+        }
+
+        .header {
+          padding: 20px;
+        }
+
+        .header h1 {
+          font-size: 2em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🌍 Traductor JSON Multi-idioma</h1>
+        <p>Traducción automática con ajustes culturales específicos</p>
+      </div>
+
+      <div class="main-content">
+        <!-- Paso 1: API Key -->
+        <div class="step active" id="step1">
+          <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">🔑 Clave API de DeepL</div>
+          </div>
+          <p style="margin-bottom: 15px">
+            Introduce tu clave API de DeepL para realizar las traducciones:
+          </p>
+          <input
+            type="password"
+            id="apiKey"
+            class="api-key-input"
+            placeholder="Introduce tu clave API de DeepL..."
+            value="0568bffc-196e-415e-b0c4-e6528de581d8:fx"
+          />
+        </div>
+
+        <!-- Paso 2: Subir archivo -->
+        <div class="step" id="step2">
+          <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">📁 Subir archivo JSON</div>
+          </div>
+          <div
+            class="file-upload"
+            id="fileUpload"
+            onclick="document.getElementById('fileInput').click()"
+          >
+            <div class="file-upload-icon">📤</div>
+            <p><strong>Arrastra tu archivo JSON aquí</strong></p>
+            <p>o haz clic para seleccionar</p>
+          </div>
+          <input type="file" id="fileInput" accept=".json" />
+          <div id="fileInfo" style="margin-top: 15px; display: none"></div>
+        </div>
+
+        <!-- Paso 3: Seleccionar idioma -->
+        <div class="step" id="step3">
+          <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">🌍 Seleccionar idioma destino</div>
+          </div>
+          <div class="language-grid" id="languageGrid">
+            <!-- Languages will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Paso 4: Análisis previo -->
+        <div class="step" id="step4" style="display: none">
+          <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">🔍 Análisis de contenido</div>
+          </div>
+          <div id="analysisContent"></div>
+          <button class="btn" id="startTranslation" style="margin-top: 20px">
+            🚀 Iniciar Traducción
+          </button>
+        </div>
+
+        <!-- Paso 5: Progreso -->
+        <div class="step" id="step5" style="display: none">
+          <div class="step-header">
+            <div class="step-number">5</div>
+            <div class="step-title">⚡ Traduciendo...</div>
+          </div>
+          <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <div id="progressText">Preparando traducción...</div>
+          <div id="statusMessages"></div>
+        </div>
+
+        <!-- Paso 6: Descarga -->
+        <div
+          class="download-section"
+          id="downloadSection"
+          style="display: none"
+        >
+          <h2>✅ ¡Procesamiento Completado!</h2>
+          <p>Tu archivo JSON ha sido procesado con ajustes culturales</p>
+          <p style="font-size: 0.9em; margin-top: 10px; opacity: 0.8">
+            Para traducción completa con DeepL, implementa un backend servidor
+          </p>
+          <button class="btn download-btn" id="downloadBtn">
+            📥 Descargar Archivo Procesado
+          </button>
+        </div>
+      </div>
+    </div>
+    <script src="translator_app.js"></script>
+  </body>
+</html>

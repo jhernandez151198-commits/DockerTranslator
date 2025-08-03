@@ -1,0 +1,18 @@
+# Usa un'immagine ufficiale Node.js
+FROM node:20
+
+# Crea cartella app
+WORKDIR /app
+
+# Copia dipendenze
+COPY package*.json ./
+RUN npm install
+
+# Copia i file del progetto
+COPY . .
+
+# Espone la porta del server
+EXPOSE 3001
+
+# Avvia il server
+CMD [ "node", "server.js" ]
