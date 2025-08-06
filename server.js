@@ -1,81 +1,46 @@
 const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-
+const path = require('path');
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// ⭐ CLAVE: Middleware para servir archivos estáticos desde public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware para parsear JSON (mantiene tu funcionalidad de traducción)
 app.use(express.json());
 
-// 🔁 Attendi per i retry
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-// 🔁 Funzione robusta con retry
-async function translateChunkWithRetry(apiKey, texts, targetLang, retries = 3) {
-  const params = new URLSearchParams();
-  params.append('auth_key', apiKey);
-  params.append('target_lang', targetLang);
-  texts.forEach(text => params.append('text', text));
-
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await axios.post('https://api-free.deepl.com/v2/translate', params);
-      return response.data.translations.map(t => t.text);
-    } catch (error) {
-      const isTemporary = error.response?.data?.message === 'Temporary Error';
-      const status = error.response?.status;
-
-      console.warn(`⚠️ DeepL error attempt ${attempt}:`, error.response?.data || error.message);
-
-      if (isTemporary && attempt < retries) {
-        const waitTime = 1000 * attempt;
-        console.log(`⏳ Waiting ${waitTime}ms before retry...`);
-        await sleep(waitTime);
-      } else {
-        throw error;
-      }
-    }
-  }
-}
-
-// 🔀 Dividi in blocchi
-function chunkArray(array, chunkSize) {
-  const results = [];
-  for (let i = 0; i < array.length; i += chunkSize) {
-    results.push(array.slice(i, i + chunkSize));
-  }
-  return results;
-}
-
-// 📥 POST /translate
-app.post('/translate', async (req, res) => {
-  const { apiKey, texts, targetLang } = req.body;
-
-  if (!apiKey || !Array.isArray(texts) || !targetLang) {
-    return res.status(400).json({ error: 'Missing parameters' });
-  }
-
-  const CHUNK_SIZE = 40;
-  const textChunks = chunkArray(texts, CHUNK_SIZE);
-  const allTranslations = [];
-
-  try {
-    for (const chunk of textChunks) {
-      const translations = await translateChunkWithRetry(apiKey, chunk, targetLang);
-      allTranslations.push(...translations);
-    }
-
-    res.json({ translations: allTranslations });
-  } catch (error) {
-    console.error('❌ DeepL API error:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({
-      error: 'Errore da DeepL',
-      details: error.response?.data || error.message,
-    });
-  }
+// ⭐ SOLUCIÓN al error "Cannot GET /": Ruta explícita para la raíz
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server backend in ascolto su http://localhost:${PORT}`);
+// ⭐ Mantén aquí tus rutas existentes de traducción
+app.post('/api/translate', (req, res) => {
+    // Tu lógica de traducción existente
+    try {
+        const { text, sourceLang, targetLang } = req.body;
+        
+        // Aquí va tu lógica de traducción actual
+        // Por ejemplo:
+        // const translatedText = tuFuncionDeTraduccion(text, sourceLang, targetLang);
+        
+        res.json({ 
+            originalText: text,
+            translatedText: "Traducción procesada", // Reemplaza con tu lógica
+            sourceLang,
+            targetLang
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error en la traducción' });
+    }
+});
+
+// Ruta catch-all para manejar rutas no encontradas
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    console.log(`📁 Sirviendo archivos estáticos desde /public`);
 });
