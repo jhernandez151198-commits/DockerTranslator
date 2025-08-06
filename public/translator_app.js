@@ -312,7 +312,7 @@ function applyTranslationsToJSON(obj, translationMap, path = "") {
 }
 
 async function translateWithBackend(texts, targetLang, apiKey) {
-  const response = await fetch("http://localhost:3001/translate", {
+  const response = await fetch("/api/translate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texts, targetLang, apiKey })
