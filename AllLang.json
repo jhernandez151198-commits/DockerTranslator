@@ -1,0 +1,701 @@
+import json
+import requests
+import time
+from typing import List, Dict, Any, Union
+import re
+
+# ✅ CONFIGURACIÓN DEEPL
+DEEPL_API_URL = "https://api-free.deepl.com/v2/translate"
+DEEPL_API_KEY = "0568bffc-196e-415e-b0c4-e6528de581d8:fx"
+INPUT_FILE = "prueba.json"
+
+# 🌍 CONFIGURACIONES POR PAÍS
+COUNTRY_CONFIGS = {
+    "ES": {  # España
+        "name": "España",
+        "deepl_code": "ES",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "dd/mm/yyyy",
+        "phone_format": "+34",
+        "output_suffix": "espana",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "euros",
+            "dólares": "euros",
+            "+351": "+34",  # Portugal a España
+            "+1": "+34",    # USA a España
+        },
+        "formality": "default"
+    },
+    "PT": {  # Portugal
+        "name": "Portugal",
+        "deepl_code": "PT-PT",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "dd/mm/yyyy",
+        "phone_format": "+351",
+        "output_suffix": "portugal",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "euros",
+            "dólares": "euros",
+            "+34": "+351",  # España a Portugal
+            "+1": "+351",   # USA a Portugal
+        },
+        "formality": "default"
+    },
+    "DE": {  # Alemania
+        "name": "Alemania",
+        "deepl_code": "DE",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+49",
+        "output_suffix": "alemania",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "Euro",
+            "dólares": "Euro",
+            "+34": "+49",
+            "+351": "+49",
+            "+1": "+49",
+        },
+        "formality": "default"
+    },
+    "PL": {  # Polonia
+        "name": "Polonia",
+        "deepl_code": "PL",
+        "currency_symbol": "zł",
+        "currency_name": "złoty",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+48",
+        "output_suffix": "polonia",
+        "locale_adjustments": {
+            "€": "zł",
+            "EUR": "PLN",
+            "USD": "PLN",
+            "$": "zł",
+            "euro": "złoty",
+            "euros": "złoty",
+            "dollars": "złoty",
+            "dólares": "złoty",
+            "+34": "+48",
+            "+351": "+48",
+            "+1": "+48",
+        },
+        "formality": "default"
+    },
+    "LT": {  # Lituania
+        "name": "Lituania",
+        "deepl_code": "LT",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "yyyy-mm-dd",
+        "phone_format": "+370",
+        "output_suffix": "lituania",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "eurai",
+            "dólares": "eurai",
+            "+34": "+370",
+            "+351": "+370",
+            "+1": "+370",
+        },
+        "formality": "default"
+    },
+    "CZ": {  # República Checa
+        "name": "República Checa",
+        "deepl_code": "CS",
+        "currency_symbol": "Kč",
+        "currency_name": "koruna",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+420",
+        "output_suffix": "republica_checa",
+        "locale_adjustments": {
+            "€": "Kč",
+            "EUR": "CZK",
+            "USD": "CZK",
+            "$": "Kč",
+            "euro": "koruna",
+            "euros": "koruny",
+            "dollars": "koruny",
+            "dólares": "koruny",
+            "+34": "+420",
+            "+351": "+420",
+            "+1": "+420",
+        },
+        "formality": "default"
+    },
+    "HU": {  # Hungría
+        "name": "Hungría",
+        "deepl_code": "HU",
+        "currency_symbol": "Ft",
+        "currency_name": "forint",
+        "date_format": "yyyy.mm.dd",
+        "phone_format": "+36",
+        "output_suffix": "hungria",
+        "locale_adjustments": {
+            "€": "Ft",
+            "EUR": "HUF",
+            "USD": "HUF",
+            "$": "Ft",
+            "euro": "forint",
+            "euros": "forint",
+            "dollars": "forint",
+            "dólares": "forint",
+            "+34": "+36",
+            "+351": "+36",
+            "+1": "+36",
+        },
+        "formality": "default"
+    },
+    "SI": {  # Eslovenia
+        "name": "Eslovenia",
+        "deepl_code": "SL",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+386",
+        "output_suffix": "eslovenia",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "evri",
+            "dólares": "evri",
+            "+34": "+386",
+            "+351": "+386",
+            "+1": "+386",
+        },
+        "formality": "default"
+    },
+    "SK": {  # Eslovaquia
+        "name": "Eslovaquia",
+        "deepl_code": "SK",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+421",
+        "output_suffix": "eslovaquia",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "eurá",
+            "dólares": "eurá",
+            "+34": "+421",
+            "+351": "+421",
+            "+1": "+421",
+        },
+        "formality": "default"
+    },
+    "RO": {  # Rumanía
+        "name": "Rumanía",
+        "deepl_code": "RO",
+        "currency_symbol": "lei",
+        "currency_name": "leu",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+40",
+        "output_suffix": "rumania",
+        "locale_adjustments": {
+            "€": "lei",
+            "EUR": "RON",
+            "USD": "RON",
+            "$": "lei",
+            "euro": "leu",
+            "euros": "lei",
+            "dollars": "lei",
+            "dólares": "lei",
+            "+34": "+40",
+            "+351": "+40",
+            "+1": "+40",
+        },
+        "formality": "default"
+    },
+    "BG": {  # Bulgaria
+        "name": "Bulgaria",
+        "deepl_code": "BG",
+        "currency_symbol": "лв",
+        "currency_name": "lev",
+        "date_format": "dd.mm.yyyy",
+        "phone_format": "+359",
+        "output_suffix": "bulgaria",
+        "locale_adjustments": {
+            "€": "лв",
+            "EUR": "BGN",
+            "USD": "BGN",
+            "$": "лв",
+            "euro": "лев",
+            "euros": "лева",
+            "dollars": "лева",
+            "dólares": "лева",
+            "+34": "+359",
+            "+351": "+359",
+            "+1": "+359",
+        },
+        "formality": "default"
+    },
+    "EL": {  # Grecia
+        "name": "Grecia",
+        "deepl_code": "EL",
+        "currency_symbol": "€",
+        "currency_name": "euro",
+        "date_format": "dd/mm/yyyy",
+        "phone_format": "+30",
+        "output_suffix": "grecia",
+        "locale_adjustments": {
+            "€": "€",
+            "USD": "EUR",
+            "$": "€",
+            "dollars": "ευρώ",
+            "dólares": "ευρώ",
+            "+34": "+30",
+            "+351": "+30",
+            "+1": "+30",
+        },
+        "formality": "default"
+    }
+}
+
+# Configuración común para todos los países
+COMMON_CONFIG = {
+    "preserve_emojis": True,
+    "emoji_patterns": [
+        r'[\U0001F600-\U0001F64F]',  # Emoticones
+        r'[\U0001F300-\U0001F5FF]',  # Símbolos varios
+        r'[\U0001F680-\U0001F6FF]',  # Transporte y mapas
+        r'[\U0001F1E0-\U0001F1FF]',  # Banderas
+        r'[\U00002700-\U000027BF]',  # Dingbats
+        r'[\U0001F900-\U0001F9FF]',  # Símbolos suplementarios
+        r'[\U00002600-\U000026FF]',  # Símbolos varios
+    ]
+}
+
+# Configuración de optimización
+BATCH_SIZE = 40
+MAX_RETRIES = 5
+BASE_DELAY = 1
+
+class MultiLanguageTranslator:
+    def __init__(self, api_key: str, api_url: str, country_code: str):
+        self.api_key = api_key
+        self.api_url = api_url
+        self.country_code = country_code
+        self.config = {**COUNTRY_CONFIGS[country_code], **COMMON_CONFIG}
+        self.translated_cache = {}
+        self.emoji_regex = self._compile_emoji_regex()
+    
+    def _compile_emoji_regex(self):
+        """Compila regex para detectar emojis"""
+        if not self.config.get("preserve_emojis", False):
+            return None
+        
+        emoji_pattern = '|'.join(self.config["emoji_patterns"])
+        return re.compile(emoji_pattern)
+    
+    def _preservar_emojis(self, texto: str) -> tuple:
+        """Extrae emojis del texto y devuelve texto sin emojis + mapa de emojis - MEJORADO"""
+        if not self.emoji_regex:
+            return texto, {}
+        
+        emojis_encontrados = {}
+        texto_procesado = texto
+        
+        # Encontrar todos los emojis con sus posiciones
+        matches = list(self.emoji_regex.finditer(texto))
+        
+        # Procesar desde el final hacia el inicio para no alterar las posiciones
+        for i, match in enumerate(reversed(matches)):
+            emoji = match.group()
+            # Crear placeholder único para cada posición
+            placeholder = f"__EMOJI_{len(matches)-1-i}_{hash(emoji)}__"
+            emojis_encontrados[placeholder] = emoji
+            texto_procesado = texto_procesado[:match.start()] + placeholder + texto_procesado[match.end():]
+        
+        return texto_procesado, emojis_encontrados
+    
+    def _restaurar_emojis(self, texto_traducido: str, emojis_map: dict) -> str:
+        """Restaura los emojis en el texto traducido - MEJORADO"""
+        texto_final = texto_traducido
+        for placeholder, emoji in emojis_map.items():
+            texto_final = texto_final.replace(placeholder, emoji)
+        return texto_final
+    
+    def _aplicar_ajustes_culturales(self, texto: str) -> str:
+        """Aplica ajustes culturales específicos del país"""
+        texto_ajustado = texto
+        
+        for original, reemplazo in self.config["locale_adjustments"].items():
+            # Reemplazos exactos y con espacios
+            texto_ajustado = re.sub(rf'\b{re.escape(original)}\b', reemplazo, texto_ajustado, flags=re.IGNORECASE)
+        
+        return texto_ajustado
+    
+    def _es_traducible(self, campo: str, texto: str) -> bool:
+        """Filtra contenido que NO debe traducirse"""
+        if not texto or not texto.strip():
+            return False
+        
+        texto_limpio = texto.strip()
+        
+        # 🚫 CAMPOS QUE NUNCA SE TRADUCEN
+        campos_no_traducibles = {
+            'id', '_id', 'url', 'link', 'href', 'src', 'class', 'custom_id', 
+            'widgetType', 'elType', 'library', 'value', 'size', 'unit', 'color',
+            'background_color', 'border_color', 'font_family', 'font_size',
+            'width', 'height', 'margin', 'padding', 'border', 'shadow',
+            'image_id', 'video_id', 'attachment_id', 'youtube_url', 'vimeo_url',
+            'hosted_url', 'webhook', 'due_date', 'css_classes', 'animation_duration',
+            'animation_delay', 'border_radius', 'box_shadow', 'text_shadow'
+        }
+        
+        if campo in campos_no_traducibles:
+            return False
+            
+        # ✅ CAMPOS QUE SÍ SE TRADUCEN
+        campos_traducibles = {
+            'title', 'text', 'editor', 'content', 'placeholder', 'field_label',
+            'button_text', 'success_message', 'error_message', 'required_field_message',
+            'invalid_message', 'server_message', 'acceptance_text', 'field_html',
+            'tab_title', 'tab_content', 'inner_text', 'label_days', 'label_hours',
+            'label_minutes', 'label_seconds', 'step_next_label', 'step_previous_label',
+            'tooltip_content', 'form_name', 'look', 'heading', 'description',
+            'subtitle', 'caption', 'alt_text'
+        }
+        
+        if campo in campos_traducibles:
+            if not self._es_contenido_tecnico(texto_limpio):
+                return True
+        
+        if self._es_contenido_tecnico(texto_limpio):
+            return False
+        
+        # ✅ VALIDACIÓN FINAL: Si tiene contenido legible, traducir
+        if len(texto_limpio) >= 3 and re.search(r'[a-zA-ZáéíóúñüÁÉÍÓÚÑÜàèìòùç]{3,}', texto_limpio):
+            return True
+        
+        return False
+    
+    def _es_contenido_tecnico(self, texto: str) -> bool:
+        """Detecta contenido técnico que no debe traducirse"""
+        filtros_no_traducir = [
+            r'^https?://.*',
+            r'^\w+://.*',
+            r'^#[a-fA-F0-9]{3,8}$',
+            r'^\d+px$',
+            r'^\d+%$',
+            r'^\d+r?em$',
+            r'^[a-z_-]+\.(jpg|jpeg|png|gif|svg|webp|mp4|webm)(\?.*)?$',
+            r'^\{\{.*\}\}$',
+            r'^\[.*\]$',
+            r'^\d+$',
+            r'^[A-Z_]{3,}$',
+            r'^fa[srlab]?-[a-z-]+$',
+            r'^elementor-.*',
+            r'^[a-f0-9]{6,8}$',
+            r'^\d{1,4}$',
+            r'^rgba?\([^)]+\)$',
+            r'^[\d\s\.\,\-\+\%\$\€\@\#\&\*\(\)\/\\\[\]_=:;]+$',
+            r'^[A-Z]{2,}(_[A-Z0-9]+)*$',
+            r'^\.[a-z-]+$',
+            r'^@[a-z-]+$',
+        ]
+        
+        for filtro in filtros_no_traducir:
+            if re.match(filtro, texto, re.IGNORECASE):
+                return True
+        
+        if not re.search(r'[a-zA-ZáéíóúñüÁÉÍÓÚÑÜàèìòùç]', texto):
+            return True
+        
+        if len(texto) <= 2 and not re.search(r'[a-zA-ZáéíóúñüÁÉÍÓÚÑÜàèìòùç]{2,}', texto):
+            return True
+        
+        if re.match(r'^<[^>]+>$', texto):
+            return True
+            
+        if texto.lower() in ['true', 'false', 'null', 'undefined', 'yes', 'no', '1', '0']:
+            return True
+            
+        return False
+    
+    def _extraer_textos_traducibles(self, node: Any, path: str = "", campo_padre: str = "") -> List[tuple]:
+        """Extrae todos los textos traducibles y sus rutas"""
+        textos = []
+        
+        if isinstance(node, dict):
+            for key, value in node.items():
+                nueva_ruta = f"{path}.{key}" if path else key
+                textos.extend(self._extraer_textos_traducibles(value, nueva_ruta, key))
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                nueva_ruta = f"{path}[{i}]"
+                textos.extend(self._extraer_textos_traducibles(item, nueva_ruta, campo_padre))
+        elif isinstance(node, str) and self._es_traducible(campo_padre, node):
+            textos.append((path, node))
+        
+        return textos
+    
+    def _traducir_lote_con_reintentos(self, textos: List[str], lang: str) -> List[str]:
+        """Traduce un lote de textos con reintentos automáticos"""
+        if not textos:
+            return textos
+        
+        # Preservar emojis antes de traducir
+        textos_procesados = []
+        emojis_maps = []
+        
+        for texto in textos:
+            texto_sin_emojis, emojis_map = self._preservar_emojis(texto)
+            textos_procesados.append(texto_sin_emojis)
+            emojis_maps.append(emojis_map)
+        
+        for intento in range(MAX_RETRIES):
+            try:
+                data = {
+                    "auth_key": self.api_key,
+                    "text": textos_procesados,
+                    "target_lang": lang,
+                    "preserve_formatting": "1",
+                    "split_sentences": "0",
+                    "tag_handling": "xml",
+                    "formality": self.config.get("formality", "default")
+                }
+                
+                response = requests.post(self.api_url, data=data, timeout=30)
+                response.raise_for_status()
+                
+                result = response.json()
+                traducciones_raw = [t["text"] for t in result["translations"]]
+                
+                # Restaurar emojis y aplicar ajustes culturales
+                traducciones_finales = []
+                for i, traduccion in enumerate(traducciones_raw):
+                    traduccion_con_emojis = self._restaurar_emojis(traduccion, emojis_maps[i])
+                    traduccion_final = self._aplicar_ajustes_culturales(traduccion_con_emojis)
+                    traducciones_finales.append(traduccion_final)
+                
+                print(f"✅ Lote de {len(textos)} textos traducido exitosamente")
+                return traducciones_finales
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    delay = (BASE_DELAY * (2 ** intento)) + (intento * 0.1)
+                    print(f"⚠️ Rate limit alcanzado. Esperando {delay:.1f}s... (intento {intento + 1}/{MAX_RETRIES})")
+                    time.sleep(delay)
+                    continue
+                else:
+                    print(f"❌ Error HTTP {e.response.status_code}: {e}")
+                    break
+            except Exception as e:
+                print(f"❌ Error en intento {intento + 1}: {e}")
+                if intento < MAX_RETRIES - 1:
+                    time.sleep(BASE_DELAY * (intento + 1))
+        
+        print(f"❌ No se pudo traducir el lote después de {MAX_RETRIES} intentos")
+        return textos
+    
+    def _procesar_en_lotes(self, textos_con_rutas: List[tuple], lang: str) -> Dict[str, str]:
+        """Procesa la traducción en lotes optimizados"""
+        traducciones = {}
+        
+        # Extraer solo los textos únicos
+        textos_unicos = {}
+        for ruta, texto in textos_con_rutas:
+            if texto not in textos_unicos:
+                textos_unicos[texto] = []
+            textos_unicos[texto].append(ruta)
+        
+        textos_lista = list(textos_unicos.keys())
+        total_textos = len(textos_lista)
+        
+        print(f"📝 Procesando {total_textos} textos únicos en lotes de {BATCH_SIZE}")
+        
+        for i in range(0, total_textos, BATCH_SIZE):
+            lote = textos_lista[i:i + BATCH_SIZE]
+            lote_numero = i // BATCH_SIZE + 1
+            total_lotes = (total_textos + BATCH_SIZE - 1) // BATCH_SIZE
+            
+            print(f"🔄 Procesando lote {lote_numero}/{total_lotes} ({len(lote)} textos)")
+            
+            traducciones_lote = self._traducir_lote_con_reintentos(lote, lang)
+            
+            for texto_original, texto_traducido in zip(lote, traducciones_lote):
+                for ruta in textos_unicos[texto_original]:
+                    traducciones[ruta] = texto_traducido
+            
+            if i + BATCH_SIZE < total_textos:
+                time.sleep(0.5)
+        
+        return traducciones
+    
+    def _aplicar_traducciones(self, node: Any, traducciones: Dict[str, str], path: str = "") -> Any:
+        """Aplica las traducciones al objeto original"""
+        if isinstance(node, dict):
+            return {key: self._aplicar_traducciones(value, traducciones, f"{path}.{key}" if path else key) 
+                   for key, value in node.items()}
+        elif isinstance(node, list):
+            return [self._aplicar_traducciones(item, traducciones, f"{path}[{i}]") 
+                   for i, item in enumerate(node)]
+        elif isinstance(node, str):
+            return traducciones.get(path, node)
+        else:
+            return node
+    
+    def traducir_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Traduce un objeto JSON completo de forma optimizada"""
+        print("🔍 Extrayendo textos traducibles...")
+        textos_con_rutas = self._extraer_textos_traducibles(data)
+        
+        if not textos_con_rutas:
+            print("ℹ️ No se encontraron textos para traducir")
+            return data
+        
+        print(f"📊 Encontrados {len(textos_con_rutas)} elementos para traducir")
+        
+        # Mostrar ejemplos
+        if textos_con_rutas:
+            print("🔍 Ejemplos de contenido a traducir:")
+            for i, (ruta, texto) in enumerate(textos_con_rutas[:10]):
+                texto_corto = texto[:50] + "..." if len(texto) > 50 else texto
+                print(f"  {i+1}. {ruta}: '{texto_corto}'")
+        
+        traducciones = self._procesar_en_lotes(textos_con_rutas, self.config["deepl_code"])
+        
+        print("🔧 Aplicando traducciones al JSON...")
+        resultado = self._aplicar_traducciones(data, traducciones)
+        
+        return resultado
+
+def mostrar_menu_idiomas():
+    """Muestra el menú de idiomas disponibles"""
+    print("\n🌍 IDIOMAS DISPONIBLES:")
+    print("=" * 50)
+    
+    for i, (code, config) in enumerate(COUNTRY_CONFIGS.items(), 1):
+        flag_map = {
+            "ES": "🇪🇸", "PT": "🇵🇹", "DE": "🇩🇪", "PL": "🇵🇱", 
+            "LT": "🇱🇹", "CZ": "🇨🇿", "HU": "🇭🇺", "SI": "🇸🇮", 
+            "SK": "🇸🇰", "RO": "🇷🇴", "BG": "🇧🇬", "EL": "🇬🇷"
+        }
+        flag = flag_map.get(code, "🏳️")
+        currency_info = f"({config['currency_symbol']} {config['currency_name']})"
+        print(f"{i:2d}. {code} - {flag} {config['name']} {currency_info}")
+    
+    print("=" * 50)
+
+def seleccionar_idioma():
+    """Permite al usuario seleccionar el idioma de destino"""
+    mostrar_menu_idiomas()
+    
+    codes = list(COUNTRY_CONFIGS.keys())
+    
+    while True:
+        try:
+            print(f"\n💬 Selecciona el idioma (1-{len(codes)}):")
+            opcion = input("Número de opción: ").strip()
+            
+            if opcion.upper() in codes:
+                # Si introduce directamente el código
+                return opcion.upper()
+            
+            # Si introduce un número
+            indice = int(opcion) - 1
+            if 0 <= indice < len(codes):
+                codigo_seleccionado = codes[indice]
+                config_seleccionada = COUNTRY_CONFIGS[codigo_seleccionado]
+                print(f"✅ Seleccionado: {config_seleccionada['name']} ({codigo_seleccionado})")
+                return codigo_seleccionado
+            else:
+                print(f"❌ Por favor, introduce un número entre 1 y {len(codes)}")
+                
+        except ValueError:
+            print("❌ Por favor, introduce un número válido o código de idioma")
+
+def analizar_campos_detectados(archivo_json: str, country_code: str):
+    """Analiza qué campos están siendo detectados para traducir"""
+    print("🔍 ANALIZANDO CAMPOS DETECTADOS...")
+    
+    with open(archivo_json, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    traductor = MultiLanguageTranslator("dummy", "dummy", country_code)
+    textos = traductor._extraer_textos_traducibles(data)
+    
+    campos = {}
+    for ruta, texto in textos:
+        campo = ruta.split('.')[-1]
+        if campo not in campos:
+            campos[campo] = []
+        campos[campo].append((ruta, texto))
+    
+    print(f"\n📊 CAMPOS DETECTADOS ({len(textos)} total):")
+    for campo, items in sorted(campos.items()):
+        print(f"\n🔸 {campo} ({len(items)} elementos):")
+        for i, (ruta, texto) in enumerate(items[:3]):
+            texto_corto = texto[:60] + "..." if len(texto) > 60 else texto
+            print(f"   {ruta}: '{texto_corto}'")
+        if len(items) > 3:
+            print(f"   ... y {len(items) - 3} más")
+
+def main():
+    print("🚀 TRADUCTOR MULTI-IDIOMA JSON 🌍")
+    print("Traducción automática con ajustes culturales específicos")
+    
+    # Selección de idioma
+    country_code = seleccionar_idioma()
+    config = COUNTRY_CONFIGS[country_code]
+    
+    output_file = f"traducido_{config['output_suffix']}.json"
+    
+    print(f"\n🎯 Configuración seleccionada:")
+    print(f"   País: {config['name']}")
+    print(f"   Moneda: {config['currency_symbol']} ({config['currency_name']})")
+    print(f"   Teléfono: {config['phone_format']}")
+    print(f"   Archivo salida: {output_file}")
+    
+    # Análisis previo
+    print("\n" + "="*50)
+    analizar_campos_detectados(INPUT_FILE, country_code)
+    print("="*50)
+    
+    respuesta = input(f"\n¿Continuar con la traducción a {config['name']}? (s/n): ")
+    if respuesta.lower() != 's':
+        print("❌ Traducción cancelada")
+        return
+    
+    try:
+        with open(INPUT_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        print(f"📁 Archivo cargado: {INPUT_FILE}")
+        
+        traductor = MultiLanguageTranslator(DEEPL_API_KEY, DEEPL_API_URL, country_code)
+        
+        print(f"🌐 Traduciendo a {config['name']} ({config['deepl_code']})...")
+        data_traducida = traductor.traducir_json(data)
+        
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(data_traducida, f, ensure_ascii=False, indent=2)
+        
+        print(f"✅ Traducción completada: {output_file}")
+        print(f"🎯 Ajustes aplicados: {config['name']}, {config['currency_symbol']}, {config['phone_format']}")
+        
+    except FileNotFoundError:
+        print(f"❌ Error: No se encontró el archivo {INPUT_FILE}")
+    except json.JSONDecodeError as e:
+        print(f"❌ Error: El archivo JSON no es válido: {e}")
+    except Exception as e:
+        print(f"❌ Error inesperado: {e}")
+
+if __name__ == "__main__":
+    main()
